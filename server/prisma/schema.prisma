@@ -1,12 +1,10 @@
-// Prisma Schema for Healthcare Appointment & Follow-up Manager
-// CareSync Platform
-
+// PostgreSQL Prisma Schema for CareSync Platform
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -15,159 +13,125 @@ model User {
   email              String          @unique
   passwordHash       String
   name               String
-  role               String          @default("PATIENT") // PATIENT, DOCTOR, ADMIN
+  role               String          @default("PATIENT")
   phone              String?
   googleRefreshToken String?
+  appointments       Appointment[]   @relation("PatientAppointments")
+  prescriptions      Prescription[]  @relation("PatientPrescriptions")
+  slotHolds          SlotHold[]      @relation("PatientHolds")
+  doctorProfile      DoctorProfile?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
-
-  // Relationships
-  doctorProfile       DoctorProfile?
-  patientAppointments Appointment[]  @relation("PatientAppointments")
-  patientPrescriptions Prescription[] @relation("PatientPrescriptions")
-  slotHolds           SlotHold[]      @relation("PatientHolds")
-
-  @@index([role])
 }
 
 model DoctorProfile {
-  id                  String         @id @default(uuid())
-  userId              String         @unique
-  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialization      String
-  bio                 String?
-  consultationFee     Float          @default(50.0)
-  slotDurationMinutes Int            @default(30)
-  workingStartTime    String         @default("09:00") // HH:mm format
-  workingEndTime      String         @default("17:00") // HH:mm format
-  workingDays         String         @default("1,2,3,4,5") // Mon-Fri (1=Mon, 7=Sun)
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-
-  // Relationships
-  leaves              DoctorLeave[]
-  appointments        Appointment[]  @relation("DoctorAppointments")
-  prescriptions       Prescription[] @relation("DoctorPrescriptions")
-  slotHolds           SlotHold[]     @relation("DoctorHolds")
-
-  @@index([specialization])
+  id                    String         @id @default(uuid())
+  userId                String         @unique
+  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization        String
+  consultationFee       Float
+  slotDurationMinutes   Int            @default(30)
+  workingStartTime      String         @default("09:00")
+  workingEndTime        String         @default("17:00")
+  appointments          Appointment[]  @relation("DoctorAppointments")
+  leaves                DoctorLeave[]
+  slotHolds             SlotHold[]     @relation("DoctorHolds")
+  prescriptions         Prescription[] @relation("DoctorPrescriptions")
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 }
 
 model DoctorLeave {
-  id         String        @id @default(uuid())
-  doctorId   String
-  doctor     DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  leaveDate  String        // YYYY-MM-DD format
-  reason     String?
-  createdAt  DateTime      @default(now())
+  id        String        @id @default(uuid())
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  leaveDate String        // YYYY-MM-DD
+  reason    String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@unique([doctorId, leaveDate])
-  @@index([leaveDate])
 }
 
 model SlotHold {
-  id         String        @id @default(uuid())
-  doctorId   String
-  doctor     DoctorProfile @relation("DoctorHolds", fields: [doctorId], references: [id], onDelete: Cascade)
-  slotDate   String        // YYYY-MM-DD
-  startTime  String        // HH:mm
-  endTime    String        // HH:mm
-  holdToken  String        @unique
-  patientId  String
-  patient    User          @relation("PatientHolds", fields: [patientId], references: [id], onDelete: Cascade)
-  expiresAt  DateTime
-  status     String        @default("ACTIVE") // ACTIVE, EXPIRED, CONVERTED
-  createdAt  DateTime      @default(now())
+  id          String        @id @default(uuid())
+  doctorId    String
+  doctor      DoctorProfile @relation("DoctorHolds", fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId   String
+  patient     User          @relation("PatientHolds", fields: [patientId], references: [id], onDelete: Cascade)
+  slotDate    String        // YYYY-MM-DD
+  startTime   String        // HH:MM
+  holdToken   String        @unique
+  expiresAt   DateTime
+  status      String        @default("HELD") // HELD, CONVERTED, RELEASED
+  createdAt   DateTime      @default(now())
 
   @@index([doctorId, slotDate, startTime])
   @@index([expiresAt])
 }
 
 model Appointment {
-  id                    String        @id @default(uuid())
+  id                    String         @id @default(uuid())
   patientId             String
-  patient               User          @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  patient               User           @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
   doctorId              String
-  doctor                DoctorProfile @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
-  appointmentDate       String        // YYYY-MM-DD
-  startTime             String        // HH:mm
-  endTime               String        // HH:mm
-  status                String        @default("BOOKED") // BOOKED, COMPLETED, CANCELLED, LEAVE_CONFLICT, RESCHEDULED
-  
-  // Symptoms & AI Pre-visit Summary
+  doctor                DoctorProfile  @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
+  appointmentDate       String         // YYYY-MM-DD
+  startTime             String         // HH:MM
+  status                String         @default("BOOKED") // BOOKED, COMPLETED, CANCELLED, LEAVE_CONFLICT
   symptoms              String
-  preVisitUrgency       String?       // Low, Medium, High
-  preVisitSummary       String?       // Chief complaint & overview
-  preVisitQuestions     String?       // JSON array of 3 suggested questions
-  
-  // Clinical Notes & AI Post-visit Summary
+  preVisitUrgency       String         @default("Low") // Low, Medium, High
+  preVisitSummary       String?
+  preVisitQuestions     String?        // Serialized JSON array of strings
   postVisitNotes        String?
-  postVisitSummary      String?       // Patient-friendly converted summary
-  
-  // External Calendar Integration
+  postVisitSummary      String?        // AI generated summary of the visit
   googleCalendarEventId String?
-  
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
-
-  // Relationships
   prescriptions         Prescription[]
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
-  @@index([patientId])
-  @@index([doctorId, appointmentDate])
-  @@index([appointmentDate, status])
+  @@unique([doctorId, appointmentDate, startTime, status])
 }
 
 model Prescription {
-  id             String        @id @default(uuid())
-  appointmentId  String
-  appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  patientId      String
-  patient        User          @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId       String
-  doctor         DoctorProfile @relation("DoctorPrescriptions", fields: [doctorId], references: [id], onDelete: Cascade)
-  medicationName String
-  dosage         String
-  frequency      String        // ONCE_DAILY, TWICE_DAILY, THRICE_DAILY, AS_NEEDED
-  durationDays   Int           @default(7)
-  instructions   String?
-  startDate      String        // YYYY-MM-DD
-  createdAt      DateTime      @default(now())
-
-  // Relationships
-  reminderLogs   MedicationReminderLog[]
-
-  @@index([patientId])
-  @@index([startDate])
+  id                    String                  @id @default(uuid())
+  appointmentId         String
+  appointment           Appointment             @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patientId             String
+  patient               User                    @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId              String
+  doctor                DoctorProfile           @relation("DoctorPrescriptions", fields: [doctorId], references: [id], onDelete: Cascade)
+  medicationName        String
+  dosage                String                  // e.g. "500mg"
+  frequency             String                  // e.g. "ONCE_DAILY", "TWICE_DAILY", "THRICE_DAILY"
+  durationDays          Int
+  startDate             String                  // YYYY-MM-DD
+  reminders             MedicationReminderLog[]
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
 }
 
 model MedicationReminderLog {
   id             String       @id @default(uuid())
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-  scheduledFor   DateTime
-  sentAt         DateTime?
+  scheduledTime  DateTime
+  sentTime       DateTime?
   status         String       @default("PENDING") // PENDING, SENT, FAILED
-  reminderType   String       @default("DOSE") // MORNING, AFTERNOON, EVENING, DOSE
+  errorLog       String?
   createdAt      DateTime     @default(now())
-
-  @@index([scheduledFor, status])
 }
 
 model EmailOutbox {
   id             String    @id @default(uuid())
-  recipientEmail String
-  recipientName  String?
+  to             String
   subject        String
-  htmlBody       String
-  templateName   String
-  attempts       Int       @default(0)
-  maxAttempts    Int       @default(5)
-  nextRetryAt    DateTime  @default(now())
+  body           String    // HTML body
   status         String    @default("PENDING") // PENDING, SENT, FAILED
+  attempts       Int       @default(0)
+  lastAttempt    DateTime?
+  nextAttempt    DateTime  @default(now())
   errorLog       String?
   createdAt      DateTime  @default(now())
-  sentAt         DateTime?
-
-  @@index([status, nextRetryAt])
+  updatedAt      DateTime  @updatedAt
 }

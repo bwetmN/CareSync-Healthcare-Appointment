@@ -4,17 +4,15 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function seed() {
-  console.log('🌱 Starting CareSync database seed...');
+  console.log('🌱 Checking CareSync database state...');
 
-  // Clear existing data in reverse order of foreign keys
-  await prisma.medicationReminderLog.deleteMany();
-  await prisma.prescription.deleteMany();
-  await prisma.slotHold.deleteMany();
-  await prisma.appointment.deleteMany();
-  await prisma.doctorLeave.deleteMany();
-  await prisma.doctorProfile.deleteMany();
-  await prisma.emailOutbox.deleteMany();
-  await prisma.user.deleteMany();
+  const userCount = await prisma.user.count();
+  if (userCount > 0) {
+    console.log('🌱 Database already contains data. Skipping seed to prevent overwriting.');
+    return;
+  }
+
+  console.log('🌱 Database is empty. Starting CareSync database seed...');
 
   const commonPassword = await bcrypt.hash('Password123!', 10);
 
