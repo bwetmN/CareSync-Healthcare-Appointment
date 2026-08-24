@@ -45,13 +45,10 @@ app.use('/api/calendar', calendarRoutes);
 // Global Error Handler
 app.use(errorHandler);
 
+import { seedDatabase } from './db/seed.js';
+
 // Start Server
 async function bootstrap() {
-  await connectDB();
-
-  // Launch background tasks (BullMQ + Cron Worker)
-  startBackgroundWorkers();
-
   const host = '0.0.0.0';
   app.listen(env.PORT, host, () => {
     console.log(`
@@ -64,12 +61,17 @@ async function bootstrap() {
   ========================================================
     `);
   });
+
+  try {
+    await connectDB();
+    await seedDatabase();
+    startBackgroundWorkers();
+  } catch (err) {
+    console.error('⚠️ Background initialization warning:', err);
+  }
 }
 
-bootstrap().catch((err) => {
-  console.error('Fatal bootstrap error:', err);
-  process.exit(1);
-});
+bootstrap();
 
 // Graceful Shutdown
 process.on('SIGTERM', async () => {

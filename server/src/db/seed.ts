@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function seed() {
+export async function seedDatabase() {
   console.log('🌱 Checking CareSync database state...');
 
   const userCount = await prisma.user.count();
@@ -281,11 +281,12 @@ async function seed() {
   console.log('----------------------------------------------------');
 }
 
-seed()
-  .catch((e) => {
-    console.error('❌ Seed error:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (process.argv[1] && process.argv[1].includes('seed')) {
+  seedDatabase()
+    .catch((e) => {
+      console.error('❌ Seed error:', e);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
