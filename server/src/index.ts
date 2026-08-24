@@ -50,17 +50,21 @@ import { seedDatabase } from './db/seed.js';
 // Start Server
 async function bootstrap() {
   const host = '0.0.0.0';
-  app.listen(env.PORT, host, () => {
-    console.log(`
-  🏥 ========================================================
-  CareSync Healthcare Appointment & Follow-up Manager
-  Server listening on: http://${host}:${env.PORT}
-  Client App URL:     ${env.CLIENT_URL}
-  Environment:        ${env.NODE_ENV}
-  Database:           Prisma (PostgreSQL / SQLite ready)
-  ========================================================
-    `);
+  const port = env.PORT || 5000;
+  
+  app.listen(port, host, () => {
+    console.log(`CareSync server primary listener active on http://${host}:${port}`);
   });
+
+  if (port !== 5000) {
+    try {
+      app.listen(5000, host, () => {
+        console.log(`CareSync server fallback listener active on http://${host}:5000`);
+      });
+    } catch (e) {
+      // Port already in use or restricted
+    }
+  }
 
   try {
     await connectDB();
