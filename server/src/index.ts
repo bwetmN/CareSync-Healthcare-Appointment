@@ -52,11 +52,12 @@ async function bootstrap() {
   // Launch background tasks (BullMQ + Cron Worker)
   startBackgroundWorkers();
 
-  app.listen(env.PORT, () => {
+  const host = '0.0.0.0';
+  app.listen(env.PORT, host, () => {
     console.log(`
   🏥 ========================================================
   CareSync Healthcare Appointment & Follow-up Manager
-  Server listening on: http://localhost:${env.PORT}
+  Server listening on: http://${host}:${env.PORT}
   Client App URL:     ${env.CLIENT_URL}
   Environment:        ${env.NODE_ENV}
   Database:           Prisma (PostgreSQL / SQLite ready)

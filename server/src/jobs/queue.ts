@@ -9,21 +9,27 @@ import { process24HourAppointmentReminders, cleanupExpiredSlotHolds } from './re
 let redisConnection: IORedis | null = null;
 let isRedisAvailable = false;
 
-// Attempt Redis connection
 try {
-  redisConnection = new IORedis({
-    host: env.REDIS_HOST,
-    port: env.REDIS_PORT,
-    password: env.REDIS_PASSWORD || undefined,
+  const redisOptions = {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
-    retryStrategy: (times) => {
-      if (times > 3) {
-        return null; // Stop retrying Redis, fallback to in-memory cron
-      }
+    lazyConnect: true,
+    retryStrategy: (times: number) => {
+      if (times > 3) return null;
       return Math.min(times * 1000, 3000);
     },
-  });
+  };
+
+  if (env.REDIS_URL) {
+    redisConnection = new (IORedis as any)(env.REDIS_URL, redisOptions);
+  } else {
+    redisConnection = new (IORedis as any)({
+      host: env.REDIS_HOST,
+      port: env.REDIS_PORT,
+      password: env.REDIS_PASSWORD || undefined,
+      ...redisOptions,
+    });
+  }
 
   redisConnection.on('connect', () => {
     isRedisAvailable = true;

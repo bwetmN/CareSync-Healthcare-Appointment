@@ -24,26 +24,34 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}): Pr
     ...options.headers,
   };
 
-  const url = `${API_BASE}${endpoint}`;
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-  const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`Network response error (${response.status}): ${text.slice(0, 100) || 'Unknown'}`);
+  try {
+    const url = `${API_BASE}${endpoint}`;
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Network response error (${response.status}): ${text.slice(0, 100) || 'Unknown'}`);
+    }
+
+    const data = await response.json();
+
+    if (!response.ok || data.success === false) {
+      const errorMsg = data.error?.message || data.message || 'Request failed';
+      throw new Error(errorMsg);
+    }
+
+    return data.data !== undefined ? data.data : data;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  const data = await response.json();
-
-  if (!response.ok || data.success === false) {
-    const errorMsg = data.error?.message || data.message || 'Request failed';
-    throw new Error(errorMsg);
-  }
-
-  return data.data !== undefined ? data.data : data;
 }
 
 export const api = {
