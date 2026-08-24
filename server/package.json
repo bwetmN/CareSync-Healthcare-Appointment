@@ -1,6 +1,7 @@
 {
   "name": "healthcare-manager-server",
   "version": "1.0.0",
+  "type": "module",
   "description": "Backend API for Healthcare Appointment & Follow-up Manager",
   "main": "dist/index.js",
   "scripts": {
