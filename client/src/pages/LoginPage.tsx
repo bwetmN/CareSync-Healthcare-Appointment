@@ -14,6 +14,8 @@ export const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
+  const [activeDemo, setActiveDemo] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -30,10 +32,16 @@ export const LoginPage: React.FC = () => {
 
   const handleDemo = async (demoRole: 'PATIENT' | 'DOCTOR' | 'ADMIN') => {
     setError(null);
+    setActiveDemo(demoRole);
     try {
+      console.log(`🚀 Initiating demo login for ${demoRole}...`);
       await demoLogin(demoRole);
+      console.log(`✅ Demo login successful for ${demoRole}!`);
     } catch (err: any) {
-      setError(err.message || 'Demo login failed');
+      console.error('Demo login error:', err);
+      setError(err.message || 'Demo login failed. Please check network connection.');
+    } finally {
+      setActiveDemo(null);
     }
   };
 
@@ -61,58 +69,76 @@ export const LoginPage: React.FC = () => {
               ⚡ Instant 1-Click Evaluation Personas
             </div>
 
+            {error && (
+              <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium p-3 rounded-xl">
+                ⚠️ {error}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               <button
                 type="button"
                 onClick={() => handleDemo('PATIENT')}
-                disabled={loading}
-                className="p-3 bg-sky-50 hover:bg-sky-100 border border-sky-100 rounded-2xl text-left transition group flex flex-col justify-between"
+                disabled={Boolean(activeDemo) || loading}
+                className="p-3 bg-sky-50 hover:bg-sky-100 active:scale-95 border border-sky-100 rounded-2xl text-left transition group flex flex-col justify-between cursor-pointer disabled:opacity-60"
               >
                 <div>
                   <div className="w-8 h-8 rounded-xl bg-brand-600 text-white flex items-center justify-center mb-2 shadow-sm">
-                    <User className="w-4 h-4" />
+                    {activeDemo === 'PATIENT' ? (
+                      <Activity className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <User className="w-4 h-4" />
+                    )}
                   </div>
                   <div className="font-bold text-xs text-slate-900">Demo Patient</div>
                   <div className="text-[10px] text-slate-500">Sarah Jenkins</div>
                 </div>
                 <span className="text-[10px] font-semibold text-brand-700 mt-2 flex items-center">
-                  Login & Book <ArrowRight className="w-2.5 h-2.5 ml-1" />
+                  {activeDemo === 'PATIENT' ? 'Opening...' : 'Login & Book'} <ArrowRight className="w-2.5 h-2.5 ml-1" />
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleDemo('DOCTOR')}
-                disabled={loading}
-                className="p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 rounded-2xl text-left transition group flex flex-col justify-between"
+                disabled={Boolean(activeDemo) || loading}
+                className="p-3 bg-emerald-50 hover:bg-emerald-100 active:scale-95 border border-emerald-100 rounded-2xl text-left transition group flex flex-col justify-between cursor-pointer disabled:opacity-60"
               >
                 <div>
                   <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-2 shadow-sm">
-                    <Stethoscope className="w-4 h-4" />
+                    {activeDemo === 'DOCTOR' ? (
+                      <Activity className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Stethoscope className="w-4 h-4" />
+                    )}
                   </div>
                   <div className="font-bold text-xs text-slate-900">Demo Doctor</div>
                   <div className="text-[10px] text-slate-500">Dr. Gregory House</div>
                 </div>
                 <span className="text-[10px] font-semibold text-emerald-700 mt-2 flex items-center">
-                  Doctor Agenda <ArrowRight className="w-2.5 h-2.5 ml-1" />
+                  {activeDemo === 'DOCTOR' ? 'Opening...' : 'Doctor Agenda'} <ArrowRight className="w-2.5 h-2.5 ml-1" />
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => handleDemo('ADMIN')}
-                disabled={loading}
-                className="p-3 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-2xl text-left transition group flex flex-col justify-between"
+                disabled={Boolean(activeDemo) || loading}
+                className="p-3 bg-purple-50 hover:bg-purple-100 active:scale-95 border border-purple-100 rounded-2xl text-left transition group flex flex-col justify-between cursor-pointer disabled:opacity-60"
               >
                 <div>
                   <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center mb-2 shadow-sm">
-                    <Shield className="w-4 h-4" />
+                    {activeDemo === 'ADMIN' ? (
+                      <Activity className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Shield className="w-4 h-4" />
+                    )}
                   </div>
                   <div className="font-bold text-xs text-slate-900">Demo Admin</div>
                   <div className="text-[10px] text-slate-500">Clinic Manager</div>
                 </div>
                 <span className="text-[10px] font-semibold text-purple-700 mt-2 flex items-center">
-                  Admin Portal <ArrowRight className="w-2.5 h-2.5 ml-1" />
+                  {activeDemo === 'ADMIN' ? 'Opening...' : 'Admin Portal'} <ArrowRight className="w-2.5 h-2.5 ml-1" />
                 </span>
               </button>
             </div>
