@@ -7,7 +7,7 @@ import {
   EmailOutboxItem,
 } from '../types';
 
-const rawBase = (import.meta.env.VITE_API_URL || '').trim();
+const rawBase = (((import.meta as any).env?.VITE_API_URL as string) || '').trim();
 const API_BASE = rawBase
   ? (rawBase.endsWith('/api') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api`)
   : '/api';
