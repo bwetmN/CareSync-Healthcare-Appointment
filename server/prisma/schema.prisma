@@ -1,4 +1,6 @@
-// PostgreSQL Prisma Schema for CareSync Platform
+// PostgreSQL Prisma Schema for Production & Docker Deployments
+// CareSync Healthcare Platform
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -16,122 +18,149 @@ model User {
   role               String          @default("PATIENT")
   phone              String?
   googleRefreshToken String?
-  appointments       Appointment[]   @relation("PatientAppointments")
-  prescriptions      Prescription[]  @relation("PatientPrescriptions")
-  slotHolds          SlotHold[]      @relation("PatientHolds")
-  doctorProfile      DoctorProfile?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
+
+  doctorProfile       DoctorProfile?
+  patientAppointments Appointment[]  @relation("PatientAppointments")
+  patientPrescriptions Prescription[] @relation("PatientPrescriptions")
+  slotHolds           SlotHold[]      @relation("PatientHolds")
+
+  @@index([role])
 }
 
 model DoctorProfile {
-  id                    String         @id @default(uuid())
-  userId                String         @unique
-  user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialization        String
-  consultationFee       Float
-  slotDurationMinutes   Int            @default(30)
-  workingStartTime      String         @default("09:00")
-  workingEndTime        String         @default("17:00")
-  appointments          Appointment[]  @relation("DoctorAppointments")
-  leaves                DoctorLeave[]
-  slotHolds             SlotHold[]     @relation("DoctorHolds")
-  prescriptions         Prescription[] @relation("DoctorPrescriptions")
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  id                  String         @id @default(uuid())
+  userId              String         @unique
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization      String
+  bio                 String?
+  consultationFee     Float          @default(50.0)
+  slotDurationMinutes Int            @default(30)
+  workingStartTime    String         @default("09:00")
+  workingEndTime      String         @default("17:00")
+  workingDays         String         @default("1,2,3,4,5")
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  leaves              DoctorLeave[]
+  appointments        Appointment[]  @relation("DoctorAppointments")
+  prescriptions       Prescription[] @relation("DoctorPrescriptions")
+  slotHolds           SlotHold[]     @relation("DoctorHolds")
+
+  @@index([specialization])
 }
 
 model DoctorLeave {
-  id        String        @id @default(uuid())
-  doctorId  String
-  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  leaveDate String        // YYYY-MM-DD
-  reason    String?
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id         String        @id @default(uuid())
+  doctorId   String
+  doctor     DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  leaveDate  String
+  reason     String?
+  createdAt  DateTime      @default(now())
 
   @@unique([doctorId, leaveDate])
+  @@index([leaveDate])
 }
 
 model SlotHold {
-  id          String        @id @default(uuid())
-  doctorId    String
-  doctor      DoctorProfile @relation("DoctorHolds", fields: [doctorId], references: [id], onDelete: Cascade)
-  patientId   String
-  patient     User          @relation("PatientHolds", fields: [patientId], references: [id], onDelete: Cascade)
-  slotDate    String        // YYYY-MM-DD
-  startTime   String        // HH:MM
-  holdToken   String        @unique
-  expiresAt   DateTime
-  status      String        @default("HELD") // HELD, CONVERTED, RELEASED
-  createdAt   DateTime      @default(now())
+  id         String        @id @default(uuid())
+  doctorId   String
+  doctor     DoctorProfile @relation("DoctorHolds", fields: [doctorId], references: [id], onDelete: Cascade)
+  slotDate   String
+  startTime  String
+  endTime    String
+  holdToken  String        @unique
+  patientId  String
+  patient    User          @relation("PatientHolds", fields: [patientId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  status     String        @default("ACTIVE")
+  createdAt  DateTime      @default(now())
 
   @@index([doctorId, slotDate, startTime])
   @@index([expiresAt])
 }
 
 model Appointment {
-  id                    String         @id @default(uuid())
+  id                    String        @id @default(uuid())
   patientId             String
-  patient               User           @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  patient               User          @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
   doctorId              String
-  doctor                DoctorProfile  @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
-  appointmentDate       String         // YYYY-MM-DD
-  startTime             String         // HH:MM
-  status                String         @default("BOOKED") // BOOKED, COMPLETED, CANCELLED, LEAVE_CONFLICT
+  doctor                DoctorProfile @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
+  appointmentDate       String
+  startTime             String
+  endTime               String
+  status                String        @default("BOOKED")
+  
   symptoms              String
-  preVisitUrgency       String         @default("Low") // Low, Medium, High
+  preVisitUrgency       String?
   preVisitSummary       String?
-  preVisitQuestions     String?        // Serialized JSON array of strings
+  preVisitQuestions     String?
+  
   postVisitNotes        String?
-  postVisitSummary      String?        // AI generated summary of the visit
+  postVisitSummary      String?
+  
   googleCalendarEventId String?
-  prescriptions         Prescription[]
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
-  @@unique([doctorId, appointmentDate, startTime, status])
+  prescriptions         Prescription[]
+
+  @@index([patientId])
+  @@index([doctorId, appointmentDate])
+  @@index([appointmentDate, status])
 }
 
 model Prescription {
-  id                    String                  @id @default(uuid())
-  appointmentId         String
-  appointment           Appointment             @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  patientId             String
-  patient               User                    @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId              String
-  doctor                DoctorProfile           @relation("DoctorPrescriptions", fields: [doctorId], references: [id], onDelete: Cascade)
-  medicationName        String
-  dosage                String                  // e.g. "500mg"
-  frequency             String                  // e.g. "ONCE_DAILY", "TWICE_DAILY", "THRICE_DAILY"
-  durationDays          Int
-  startDate             String                  // YYYY-MM-DD
-  reminders             MedicationReminderLog[]
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
+  id             String        @id @default(uuid())
+  appointmentId  String
+  appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patientId      String
+  patient        User          @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId       String
+  doctor         DoctorProfile @relation("DoctorPrescriptions", fields: [doctorId], references: [id], onDelete: Cascade)
+  medicationName String
+  dosage         String
+  frequency      String
+  durationDays   Int           @default(7)
+  instructions   String?
+  startDate      String
+  createdAt      DateTime      @default(now())
+
+  reminderLogs   MedicationReminderLog[]
+
+  @@index([patientId])
+  @@index([startDate])
 }
 
 model MedicationReminderLog {
   id             String       @id @default(uuid())
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-  scheduledTime  DateTime
-  sentTime       DateTime?
-  status         String       @default("PENDING") // PENDING, SENT, FAILED
-  errorLog       String?
+  scheduledFor   DateTime
+  sentAt         DateTime?
+  status         String       @default("PENDING")
+  reminderType   String       @default("DOSE")
   createdAt      DateTime     @default(now())
+
+  @@index([scheduledFor, status])
 }
 
 model EmailOutbox {
   id             String    @id @default(uuid())
-  to             String
+  recipientEmail String
+  recipientName  String?
   subject        String
-  body           String    // HTML body
-  status         String    @default("PENDING") // PENDING, SENT, FAILED
+  htmlBody       String
+  templateName   String
   attempts       Int       @default(0)
-  lastAttempt    DateTime?
-  nextAttempt    DateTime  @default(now())
+  maxAttempts    Int       @default(5)
+  nextRetryAt    DateTime  @default(now())
+  status         String    @default("PENDING")
   errorLog       String?
   createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  sentAt         DateTime?
+
+  @@index([status, nextRetryAt])
 }

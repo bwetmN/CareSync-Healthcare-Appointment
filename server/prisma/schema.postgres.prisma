@@ -119,7 +119,7 @@ model Prescription {
   patientId      String
   patient        User          @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
   doctorId       String
-  doctor         DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor         DoctorProfile @relation("DoctorPrescriptions", fields: [doctorId], references: [id], onDelete: Cascade)
   medicationName String
   dosage         String
   frequency      String
