@@ -7,7 +7,10 @@ import {
   EmailOutboxItem,
 } from '../types';
 
-const API_BASE = '/api';
+const rawBase = (import.meta.env.VITE_API_URL || '').trim();
+const API_BASE = rawBase
+  ? (rawBase.endsWith('/api') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api`)
+  : '/api';
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('caresync_token');
@@ -21,10 +24,17 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}): Pr
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const url = `${API_BASE}${endpoint}`;
+  const response = await fetch(url, {
     ...options,
     headers,
   });
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Network response error (${response.status}): ${text.slice(0, 100) || 'Unknown'}`);
+  }
 
   const data = await response.json();
 
