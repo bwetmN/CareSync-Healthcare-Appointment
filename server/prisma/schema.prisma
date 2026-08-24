@@ -1,0 +1,173 @@
+// Prisma Schema for Healthcare Appointment & Follow-up Manager
+// CareSync Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String          @id @default(uuid())
+  email              String          @unique
+  passwordHash       String
+  name               String
+  role               String          @default("PATIENT") // PATIENT, DOCTOR, ADMIN
+  phone              String?
+  googleRefreshToken String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  // Relationships
+  doctorProfile       DoctorProfile?
+  patientAppointments Appointment[]  @relation("PatientAppointments")
+  patientPrescriptions Prescription[] @relation("PatientPrescriptions")
+  slotHolds           SlotHold[]      @relation("PatientHolds")
+
+  @@index([role])
+}
+
+model DoctorProfile {
+  id                  String         @id @default(uuid())
+  userId              String         @unique
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization      String
+  bio                 String?
+  consultationFee     Float          @default(50.0)
+  slotDurationMinutes Int            @default(30)
+  workingStartTime    String         @default("09:00") // HH:mm format
+  workingEndTime      String         @default("17:00") // HH:mm format
+  workingDays         String         @default("1,2,3,4,5") // Mon-Fri (1=Mon, 7=Sun)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relationships
+  leaves              DoctorLeave[]
+  appointments        Appointment[]  @relation("DoctorAppointments")
+  prescriptions       Prescription[] @relation("DoctorPrescriptions")
+  slotHolds           SlotHold[]     @relation("DoctorHolds")
+
+  @@index([specialization])
+}
+
+model DoctorLeave {
+  id         String        @id @default(uuid())
+  doctorId   String
+  doctor     DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  leaveDate  String        // YYYY-MM-DD format
+  reason     String?
+  createdAt  DateTime      @default(now())
+
+  @@unique([doctorId, leaveDate])
+  @@index([leaveDate])
+}
+
+model SlotHold {
+  id         String        @id @default(uuid())
+  doctorId   String
+  doctor     DoctorProfile @relation("DoctorHolds", fields: [doctorId], references: [id], onDelete: Cascade)
+  slotDate   String        // YYYY-MM-DD
+  startTime  String        // HH:mm
+  endTime    String        // HH:mm
+  holdToken  String        @unique
+  patientId  String
+  patient    User          @relation("PatientHolds", fields: [patientId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  status     String        @default("ACTIVE") // ACTIVE, EXPIRED, CONVERTED
+  createdAt  DateTime      @default(now())
+
+  @@index([doctorId, slotDate, startTime])
+  @@index([expiresAt])
+}
+
+model Appointment {
+  id                    String        @id @default(uuid())
+  patientId             String
+  patient               User          @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId              String
+  doctor                DoctorProfile @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
+  appointmentDate       String        // YYYY-MM-DD
+  startTime             String        // HH:mm
+  endTime               String        // HH:mm
+  status                String        @default("BOOKED") // BOOKED, COMPLETED, CANCELLED, LEAVE_CONFLICT, RESCHEDULED
+  
+  // Symptoms & AI Pre-visit Summary
+  symptoms              String
+  preVisitUrgency       String?       // Low, Medium, High
+  preVisitSummary       String?       // Chief complaint & overview
+  preVisitQuestions     String?       // JSON array of 3 suggested questions
+  
+  // Clinical Notes & AI Post-visit Summary
+  postVisitNotes        String?
+  postVisitSummary      String?       // Patient-friendly converted summary
+  
+  // External Calendar Integration
+  googleCalendarEventId String?
+  
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  // Relationships
+  prescriptions         Prescription[]
+
+  @@index([patientId])
+  @@index([doctorId, appointmentDate])
+  @@index([appointmentDate, status])
+}
+
+model Prescription {
+  id             String        @id @default(uuid())
+  appointmentId  String
+  appointment    Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patientId      String
+  patient        User          @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId       String
+  doctor         DoctorProfile @relation("DoctorPrescriptions", fields: [doctorId], references: [id], onDelete: Cascade)
+  medicationName String
+  dosage         String
+  frequency      String        // ONCE_DAILY, TWICE_DAILY, THRICE_DAILY, AS_NEEDED
+  durationDays   Int           @default(7)
+  instructions   String?
+  startDate      String        // YYYY-MM-DD
+  createdAt      DateTime      @default(now())
+
+  // Relationships
+  reminderLogs   MedicationReminderLog[]
+
+  @@index([patientId])
+  @@index([startDate])
+}
+
+model MedicationReminderLog {
+  id             String       @id @default(uuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  scheduledFor   DateTime
+  sentAt         DateTime?
+  status         String       @default("PENDING") // PENDING, SENT, FAILED
+  reminderType   String       @default("DOSE") // MORNING, AFTERNOON, EVENING, DOSE
+  createdAt      DateTime     @default(now())
+
+  @@index([scheduledFor, status])
+}
+
+model EmailOutbox {
+  id             String    @id @default(uuid())
+  recipientEmail String
+  recipientName  String?
+  subject        String
+  htmlBody       String
+  templateName   String
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(5)
+  nextRetryAt    DateTime  @default(now())
+  status         String    @default("PENDING") // PENDING, SENT, FAILED
+  errorLog       String?
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+
+  @@index([status, nextRetryAt])
+}

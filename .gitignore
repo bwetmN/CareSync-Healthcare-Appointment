@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment Variables (NEVER commit these)
+.env
+**/.env
+!.env.example
+
+# Build outputs
+dist/
+**/dist/
+build/
+**/build/
+
+# Database files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Zip deliverables
+*.zip
+
+# Prisma client generated files (can be regenerated with `prisma generate`)
+server/node_modules/.prisma/
