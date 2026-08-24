@@ -17,19 +17,28 @@ async function getTransporter(): Promise<nodemailer.Transporter> {
         pass: env.SMTP_PASS,
       },
     });
-  } else {
-    // Generate an automatic Ethereal test account for local dev / demo testing
-    const testAccount = await nodemailer.createTestAccount();
+  } else if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT) {
     transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
+      jsonTransport: true,
     });
-    console.log(`📧 Ethereal test mail inbox active: ${testAccount.user}`);
+    console.log('📧 Cloud Production: Mock JSON Email Transporter active (all notifications saved to database outbox).');
+  } else {
+    try {
+      // Generate an automatic Ethereal test account for local dev
+      const testAccount = await nodemailer.createTestAccount();
+      transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
+        auth: {
+          user: testAccount.user,
+          pass: testAccount.pass,
+        },
+      });
+      console.log(`📧 Ethereal test mail inbox active: ${testAccount.user}`);
+    } catch (e) {
+      transporter = nodemailer.createTransport({ jsonTransport: true });
+    }
   }
 
   return transporter;
