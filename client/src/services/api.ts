@@ -7,7 +7,8 @@ import {
   EmailOutboxItem,
 } from '../types';
 
-const rawBase = (((import.meta as any).env?.VITE_API_URL as string) || '').trim();
+const PROD_BACKEND_URL = 'https://caresync-healthcare-appointment-production.up.railway.app';
+const rawBase = (((import.meta as any).env?.VITE_API_URL as string) || (typeof window !== 'undefined' && window.location.hostname.includes('railway.app') ? PROD_BACKEND_URL : '')).trim();
 const API_BASE = rawBase
   ? (rawBase.endsWith('/api') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api`)
   : '/api';

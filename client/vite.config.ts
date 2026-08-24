@@ -14,5 +14,11 @@ export default defineConfig({
   },
   preview: {
     allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'https://caresync-healthcare-appointment-production.up.railway.app',
+        changeOrigin: true,
+      },
+    },
   },
 });
