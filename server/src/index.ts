@@ -24,6 +24,15 @@ app.use(
 );
 app.use(express.json());
 
+// Root Health Check
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'CareSync Healthcare API',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Health Check
 app.get('/api/health', (req, res) => {
   res.json({
