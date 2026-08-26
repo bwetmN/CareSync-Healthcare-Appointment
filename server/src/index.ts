@@ -16,12 +16,27 @@ import calendarRoutes from './routes/calendar.routes.js';
 const app = express();
 
 // Middlewares
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-  })
-);
+const allowedOrigins = [
+  'https://divine-consideration-production-71aa.up.railway.app',
+  env.CLIENT_URL,
+  'http://localhost:5173',
+].filter(Boolean);
+
+const corsOptions: cors.CorsOptions = {
+  origin(origin, callback) {
+    // Allow requests with no Origin header (curl, server-to-server, health checks)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS blocked request from origin: ${origin}`);
+      callback(null, false);
+    }
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Root Health Check
