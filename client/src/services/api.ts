@@ -36,16 +36,16 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}): Pr
       signal: options.signal || controller.signal,
     });
 
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
       const text = await response.text().catch(() => '');
-      throw new Error(`Network response error (${response.status}): ${text.slice(0, 100) || 'Unknown'}`);
+      throw new Error(`Server returned unexpected response (${response.status}): ${text.slice(0, 100)}`);
     }
 
-    const data = await response.json();
-
-    if (!response.ok || data.success === false) {
-      const errorMsg = data.error?.message || data.message || 'Request failed';
+    if (!response.ok || data?.success === false) {
+      const errorMsg = data?.error?.message || data?.message || 'Request failed';
       throw new Error(errorMsg);
     }
 
