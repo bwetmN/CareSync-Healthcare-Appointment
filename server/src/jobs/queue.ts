@@ -1,12 +1,12 @@
 import { Queue, Worker } from 'bullmq';
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
 import { env } from '../config/env.js';
 import cron from 'node-cron';
 import { processEmailQueue } from './email.worker.js';
 import { processMedicationReminders } from './medication.worker.js';
 import { process24HourAppointmentReminders, cleanupExpiredSlotHolds } from './reminder.worker.js';
 
-let redisConnection: IORedis | null = null;
+let redisConnection: Redis | null = null;
 let isRedisAvailable = false;
 
 try {
@@ -21,9 +21,9 @@ try {
   };
 
   if (env.REDIS_URL) {
-    redisConnection = new (IORedis as any)(env.REDIS_URL, redisOptions);
+    redisConnection = new Redis(env.REDIS_URL, redisOptions);
   } else {
-    redisConnection = new (IORedis as any)({
+    redisConnection = new Redis({
       host: env.REDIS_HOST,
       port: env.REDIS_PORT,
       password: env.REDIS_PASSWORD || undefined,
@@ -31,14 +31,16 @@ try {
     });
   }
 
-  redisConnection.on('connect', () => {
-    isRedisAvailable = true;
-    console.log('✅ Connected to Redis successfully. BullMQ queue worker enabled.');
-  });
+  if (redisConnection) {
+    redisConnection.on('connect', () => {
+      isRedisAvailable = true;
+      console.log('✅ Connected to Redis successfully. BullMQ queue worker enabled.');
+    });
 
-  redisConnection.on('error', () => {
-    isRedisAvailable = false;
-  });
+    redisConnection.on('error', () => {
+      isRedisAvailable = false;
+    });
+  }
 } catch (e) {
   isRedisAvailable = false;
 }
